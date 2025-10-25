@@ -1,7 +1,5 @@
 // server.js
-// viwaco-boatd – Enkel Node/Express-app m/ Postgres på Heroku
-// Kjør lokalt: `npm install` → `npm start`
-// Heroku: Koble til GitHub og Deploy. Legg til Heroku Postgres (Hobby Dev) via Dashboard.
+// viwaco-boatd – Enkel Node/Express-app m/ Postgres på Heroku + Slett-knapp for annonser
 
 const express = require('express');
 const path = require('path');
@@ -22,7 +20,6 @@ app.use(bodyParser.json());
 // ===============================
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Heroku Postgres krever SSL; lokalt kan DATABASE_URL mangle – da bruker pg uten SSL
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
 });
 
@@ -58,7 +55,6 @@ async function initDb() {
     );
   `);
 
-  // Seed med to eksempelannonser hvis tomt
   const { rows } = await pool.query('SELECT COUNT(*)::int AS n FROM listings');
   if (rows[0].n === 0) {
     await pool.query(
@@ -206,7 +202,7 @@ app.post('/sell', async (req, res) => {
   const { title, priceNOK, location, description, phone, token } = req.body;
   try {
     if (token !== ADMIN_TOKEN) {
-      return res.status(401).send(layout('Ugyldig token', `<div class="p-6 bg-white rounded-2xl border"><p class="text-red-600">Ugyldig admin token.</p><p class="mt-4"><a class="underline" href="/">Tilbake</a></p></div>`));
+      return res.status(401).send(layout('Ugyldig token', `<div class=\"p-6 bg-white rounded-2xl border\"><p class=\"text-red-600\">Ugyldig admin token.</p><p class=\"mt-4\"><a class=\"underline\" href=\"/\">Tilbake</a></p></div>`));
     }
     await pool.query(
       `INSERT INTO listings (title, price_nok, location, description, phone) VALUES ($1,$2,$3,$4,$5)`,
@@ -231,7 +227,6 @@ app.post('/repair', async (req, res) => {
       [name, phone, boat, issue]
     );
 
-    // Valgfritt: send e‑post via SendGrid om SENDGRID_API_KEY og TO_EMAIL er satt
     try {
       if (process.env.SENDGRID_API_KEY && process.env.TO_EMAIL) {
         const sg = require('@sendgrid/mail');
@@ -260,7 +255,22 @@ app.post('/repair', async (req, res) => {
   }
 });
 
-// Enkel admin-side (lese data) – beskyttet med token i query (?token=...)
+// SLETT annonse (token-beskyttet)
+app.post('/delete-listing', async (req, res) => {
+  const { id, token } = req.body;
+  try {
+    if (token !== ADMIN_TOKEN) {
+      return res.status(401).send('Ugyldig token');
+    }
+    await pool.query('DELETE FROM listings WHERE id = $1', [Number(id)]);
+    res.redirect('/admin?token=' + encodeURIComponent(token));
+  } catch (e) {
+    console.error(e);
+    res.status(500).send('Klarte ikke å slette annonsen.');
+  }
+});
+
+// Admin-side
 app.get('/admin', async (req, res) => {
   const token = req.query.token;
   if (token !== ADMIN_TOKEN) {
@@ -276,7 +286,17 @@ app.get('/admin', async (req, res) => {
     const { rows: repairs } = await pool.query('SELECT * FROM repair_requests ORDER BY created_at DESC, id DESC');
     const { rows: sells } = await pool.query('SELECT * FROM sell_submissions ORDER BY created_at DESC, id DESC');
 
-    const items = listings.map(l => `<li><strong>${l.title}</strong> – ${currency(l.price_nok)} – ${l.location}</li>`).join('');
+    const items = listings.map(l => `
+      <li class="flex items-center gap-3">
+        <span class="flex-1"><strong>${l.title}</strong> – ${currency(l.price_nok)} – ${l.location}</span>
+        <form method="post" action="/delete-listing" class="inline" onsubmit="return confirm('Slette denne annonsen?');">
+          <input type="hidden" name="id" value="${l.id}" />
+          <input type="hidden" name="token" value="${token}" />
+          <button class="px-3 py-1 rounded-lg border text-sm hover:bg-red-50" type="submit">Slett</button>
+        </form>
+      </li>
+    `).join('');
+
     const repairList = repairs.map(r => `<li>#${r.id} – ${r.name} (${r.phone}) – ${r.boat}</li>`).join('');
     const sellList = sells.map(s => `<li>#${s.id} – ${s.title} – ${currency(s.price_nok)}</li>`).join('');
 
@@ -284,7 +304,7 @@ app.get('/admin', async (req, res) => {
       <div class="grid lg:grid-cols-3 gap-6">
         <div class="p-6 bg-white rounded-2xl border">
           <h3 class="font-semibold">Annonser (${listings.length})</h3>
-          <ul class="mt-2 list-disc ml-5 text-sm">${items || '<li>Ingen</li>'}</ul>
+          <ul class="mt-2 space-y-2 text-sm">${items || '<li>Ingen</li>'}</ul>
         </div>
         <div class="p-6 bg-white rounded-2xl border">
           <h3 class="font-semibold">Serviceforespørsler (${repairs.length})</h3>
@@ -303,7 +323,7 @@ app.get('/admin', async (req, res) => {
 });
 
 app.use((req, res) => {
-  res.status(404).send(layout('404', `<div class="p-6 bg-white rounded-2xl border"><p>Siden finnes ikke.</p><p class="mt-4"><a class="underline" href="/">Til forsiden</a></p></div>`));
+  res.status(404).send(layout('404', `<div class=\"p-6 bg-white rounded-2xl border\"><p>Siden finnes ikke.</p><p class=\"mt-4\"><a class=\"underline\" href=\"/\">Til forsiden</a></p></div>`));
 });
 
 initDb()
