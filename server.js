@@ -50,7 +50,7 @@ function layout(title, content) {
 <body class="bg-slate-50 text-slate-900">
   <header class="bg-white/80 backdrop-blur sticky top-0 z-10 border-b">
     <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-      <a href="/" class="text-xl font-bold">Båtcompaniet</a>
+      <a href="/" class="text-xl font-bold">viwaco-boatd</a>
       <nav class="flex gap-6 text-sm">
         <a class="hover:underline" href="#kjop">Kjøp båt</a>
         <a class="hover:underline" href="#selg">Selg båt</a>
@@ -63,7 +63,7 @@ function layout(title, content) {
   </main>
   <footer class="border-t mt-12">
     <div class="max-w-6xl mx-auto px-4 py-6 text-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-      <p>© ${new Date().getFullYear()} Båtcompaniet</p>
+      <p>© ${new Date().getFullYear()} viwaco-boatd</p>
       <p><a class="underline" href="/admin">Admin</a></p>
     </div>
   </footer>
@@ -90,7 +90,7 @@ app.get('/', (req, res) => {
     </div>
   `).join('');
 
-  const html = layout('Båtcompaniet – kjøp, salg og reparasjon', `
+  const html = layout('viwaco-boatd – kjøp, salg og reparasjon', `
     <section id="hero" class="grid sm:grid-cols-2 gap-8 items-center">
       <div>
         <h1 class="text-3xl sm:text-4xl font-bold leading-tight">Kjøp, salg og reparasjon av båter – enkelt og trygt</h1>
@@ -108,7 +108,7 @@ app.get('/', (req, res) => {
           <li>Søndag: Stengt</li>
         </ul>
         <p class="mt-4 text-sm">Telefon: <a class="underline" href="tel:+4790000000">+47 900 00 000</a></p>
-        <p class="text-sm">E‑post: <a class="underline" href="mailto:post@batcompaniet.no">post@batcompaniet.no</a></p>
+        <p class="text-sm">E‑post: <a class="underline" href="mailto:post@viwaco-boatd.com">post@viwaco-boatd.com</a></p>
       </div>
     </section>
 
